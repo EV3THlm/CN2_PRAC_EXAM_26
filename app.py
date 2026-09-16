@@ -6,13 +6,19 @@ from dotenv import load_dotenv
 # Cargar las variables de entorno
 load_dotenv()
 
-template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
+template_dir = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), 'templates')
+)
+
 print(">>> RUTA CALCULADA DE TEMPLATES:", template_dir)
 print(">>> ¿EXISTE LA CARPETA?:", os.path.exists(template_dir))
+
 if os.path.exists(template_dir):
     print(">>> ARCHIVOS DENTRO:", os.listdir(template_dir))
 
+
 app = Flask(__name__, template_folder=template_dir)
+
 # Configuración de la base de datos PostgreSQL
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -21,21 +27,42 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 
-# Modelo Categoría
+# ==========================================
+# MODELO CATEGORÍA
+# ==========================================
+
 class Category(db.Model):
     __tablename__ = 'categories'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False, unique=True)
+    name = db.Column(
+        db.String(100),
+        nullable=False,
+        unique=True
+    )
 
 
-# Modelo Post
+# ==========================================
+# MODELO POST
+# ==========================================
+
 class Post(db.Model):
     __tablename__ = 'posts'
 
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
-    content = db.Column(db.Text, nullable=False)
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
+
+    title = db.Column(
+        db.String(200),
+        nullable=False
+    )
+
+    content = db.Column(
+        db.Text,
+        nullable=False
+    )
 
     category_id = db.Column(
         db.Integer,
@@ -49,14 +76,21 @@ class Post(db.Model):
     )
 
 
-# Crear las tablas si no existen
+# ==========================================
+# CREAR TABLAS
+# ==========================================
+
 with app.app_context():
     db.create_all()
 
 
-# Ruta para ver todos los posts
+# ==========================================
+# RUTA PRINCIPAL - MOSTRAR POSTS
+# ==========================================
+
 @app.route('/')
 def index():
+
     posts = Post.query.all()
     categories = Category.query.all()
 
@@ -67,7 +101,10 @@ def index():
     )
 
 
-# Ruta para crear un nuevo post
+# ==========================================
+# CREAR POST
+# ==========================================
+
 @app.route('/post/new', methods=['GET', 'POST'])
 def add_post():
 
@@ -88,7 +125,6 @@ def add_post():
 
         return redirect(url_for('index'))
 
-    # Si es GET
     categories = Category.query.all()
 
     return render_template(
@@ -97,6 +133,53 @@ def add_post():
     )
 
 
-# Ejecutar la aplicación
+# ==========================================
+# ACTUALIZAR POST
+# ==========================================
+
+@app.route('/post/update/<int:id>', methods=['GET', 'POST'])
+def update_post(id):
+
+    post = Post.query.get(id)
+
+    if request.method == 'POST':
+
+        post.title = request.form['title']
+        post.category_id = request.form.get('category_id')
+        post.content = request.form['content']
+
+        db.session.commit()
+
+        return redirect(url_for('index'))
+
+    categories = Category.query.all()
+
+    return render_template(
+        'update_post.html',
+        post=post,
+        categories=categories
+    )
+
+
+# ==========================================
+# ELIMINAR POST
+# ==========================================
+
+@app.route('/posts/delete/<int:id>')
+def delete_post(id):
+
+    post = Post.query.get(id)
+
+    if post:
+        db.session.delete(post)
+        db.session.commit()
+
+    return redirect(url_for('index'))
+
+
+# ==========================================
+# EJECUTAR APLICACIÓN
+# ==========================================
+
 if __name__ == '__main__':
     app.run(debug=True)
